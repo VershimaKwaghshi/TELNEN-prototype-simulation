@@ -1,40 +1,32 @@
-import {
-  evaluateAccountRisk
-} from "./riskEngine"
-
+import { evaluateAccountRisk } from "./riskEngine"
 import {
   buildHardStopCommands,
   buildRestitutionCommand,
-  buildLienCommand
+  buildLienCommand,
+  buildRemoveLienCommand
 } from "./brokerEngine"
+import { calculateWithdrawalDistribution } from "./withdrawalEngine"
 
-import {
-  calculateWithdrawalDistribution
-} from "./withdrawalEngine"
-
-export function evaluateBrokerTelemetry(
-  brokerAccount
-) {
-  const risk =
-    evaluateAccountRisk(brokerAccount)
+export function evaluateBrokerTelemetry(brokerAccount) {
+  const risk = evaluateAccountRisk(brokerAccount)
 
   const commands = []
 
   if (risk.hardStop) {
     commands.push(
-      ...buildHardStopCommands(
-        brokerAccount
-      )
+      ...buildHardStopCommands(brokerAccount)
     )
 
     commands.push(
       buildLienCommand({
-        accountId:
-          brokerAccount.id,
-
-        amount:
-          brokerAccount.equity,
-
+        accountId: brokerAccount.id,
+        amount: Math.max(
+          0,
+          Math.min(
+            brokerAccount.equity,
+            brokerAccount.initialValue * 0.5
+          )
+        ),
         claimId: null
       })
     )
@@ -56,29 +48,53 @@ export function createRestitutionInstruction({
       accountId,
       amount
     }),
-
     claimId
   }
+}
+
+export function createSocialBondLienInstruction({
+  accountId,
+  claimId,
+  amount
+}) {
+  return buildLienCommand({
+    accountId,
+    amount,
+    claimId
+  })
+}
+
+export function createSocialBondReleaseInstruction({
+  accountId,
+  claimId,
+  amount
+}) {
+  return buildRemoveLienCommand({
+    accountId,
+    amount,
+    claimId
+  })
 }
 
 export function approveWithdrawal({
   account,
   withdrawalAmount,
   hasSubManager = false,
-  claimId = null
+  referral
 }) {
-  if (
-    account.withdrawalStatus ===
-    "blocked"
-  ) {
+  if (!referral?.currentReferrerId) {
+    throw new Error(
+      "A referral relationship is required"
+    )
+  }
+
+  if (account.withdrawalStatus === "blocked") {
     throw new Error(
       "Withdrawal is blocked"
     )
   }
 
-  if (
-    account.equity < withdrawalAmount
-  ) {
+  if (account.equity < withdrawalAmount) {
     throw new Error(
       "Insufficient equity"
     )
@@ -97,21 +113,16 @@ export function approveWithdrawal({
 
     accountId: account.id,
 
-    claimId,
-
     withdrawalAmount,
 
     distribution,
 
     brokerInstruction: {
-      command:
-        "approve_withdrawal",
+      command: "approve_withdrawal",
 
-      accountId:
-        account.id,
+      accountId: account.id,
 
-      amount:
-        withdrawalAmount,
+      amount: withdrawalAmount,
 
       distribution
     }
