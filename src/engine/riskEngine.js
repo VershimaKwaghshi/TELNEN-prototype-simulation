@@ -1,77 +1,55 @@
 import { TELNEN_RULES } from "../data/rules"
 
 export function calculateDrawdown(initialValue, equity) {
-  if (initialValue <= 0) {
-    return 0
-  }
+  if (initialValue <= 0) return 0
 
-  return (
-    (initialValue - equity) /
-    initialValue
+  return Math.max(
+    0,
+    (initialValue - equity) / initialValue
   )
 }
 
-export function hasReachedHardStop(initialValue, equity) {
-  const drawdown =
-    calculateDrawdown(
-      initialValue,
-      equity
-    )
-
+export function hasReachedHardStop(
+  initialValue,
+  equity
+) {
   return (
-    drawdown >=
+    calculateDrawdown(initialValue, equity) >=
     TELNEN_RULES.hardStopDrawdown
   )
 }
 
-export function executeHardStop(account) {
-  if (
-    !hasReachedHardStop(
-      account.initialValue,
-      account.equity
-    )
-  ) {
-    return {
-      triggered: false,
-      account
-    }
-  }
+export function calculateRestitutionClaim(
+  initialValue,
+  equity
+) {
+  return Math.max(
+    0,
+    initialValue - equity
+  )
+}
 
-  const restitutionAmount =
-    account.initialValue -
+export function evaluateAccountRisk(account) {
+  const drawdown = calculateDrawdown(
+    account.initialValue,
     account.equity
+  )
+
+  const hardStop =
+    drawdown >= TELNEN_RULES.hardStopDrawdown
 
   return {
-    triggered: true,
+    accountId: account.id,
+    initialValue: account.initialValue,
+    equity: account.equity,
+    drawdown,
+    hardStop,
 
-    account: {
-      ...account,
-
-      status: "restitution",
-
-      managerConnection: null,
-
-      restitutionCollateral:
-        account.equity
-    },
-
-    restitutionClaim: {
-      accountId: account.id,
-
-      managerId:
-        account.managerId,
-
-      claimAmount:
-        restitutionAmount,
-
-      recoveredFromManager: 0,
-
-      advancedFromTelnensBuffer: 0,
-
-      outstanding:
-        restitutionAmount,
-
-      status: "active"
-    }
+    restitutionAmount: hardStop
+      ? calculateRestitutionClaim(
+          account.initialValue,
+          account.equity
+        )
+      : 0
   }
 }
