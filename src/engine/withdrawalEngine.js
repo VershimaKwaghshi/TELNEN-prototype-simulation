@@ -3,8 +3,8 @@ export const WITHDRAWAL_RULES = {
   managerShare: 0.35,
   telnenshare: 0.30,
 
-  referralShareFromTELNEN: 0.15,
-  telnenshareAfterReferral: 0.15,
+  referralShareFromTE: 0.50,
+  retainedTEshareFromTE: 0.50,
 
   subManagerShareOfManagerAllocation: 0.50
 }
@@ -29,7 +29,7 @@ export function calculateWithdrawalDistribution(
     withdrawalAmount *
     WITHDRAWAL_RULES.managerShare
 
-  const telnenshare =
+  const teAllocation =
     withdrawalAmount *
     WITHDRAWAL_RULES.telnenshare
 
@@ -41,9 +41,11 @@ export function calculateWithdrawalDistribution(
   if (hasSubManager) {
     managerAmount =
       managerAllocation *
-      (1 -
+      (
+        1 -
         WITHDRAWAL_RULES
-          .subManagerShareOfManagerAllocation)
+          .subManagerShareOfManagerAllocation
+      )
 
     subManagerAmount =
       managerAllocation *
@@ -52,14 +54,21 @@ export function calculateWithdrawalDistribution(
   }
 
   const referralAmount =
-    telnenshare *
+    teAllocation *
     WITHDRAWAL_RULES
-      .referralShareFromTELNEN
+      .referralShareFromTE
 
-  const telnenshareRetained =
-    telnenshare *
+  const retainedTEAmount =
+    teAllocation *
     WITHDRAWAL_RULES
-      .telnenshareAfterReferral
+      .retainedTEshareFromTE
+
+  const total =
+    ownerAmount +
+    managerAmount +
+    subManagerAmount +
+    referralAmount +
+    retainedTEAmount
 
   return {
     withdrawalAmount,
@@ -72,17 +81,15 @@ export function calculateWithdrawalDistribution(
 
     subManagerAmount,
 
-    telnenshare,
+    teAllocation,
 
     referralAmount,
 
-    telnenshareRetained,
+    retainedTEAmount,
 
-    totalDistributed:
-      ownerAmount +
-      managerAmount +
-      subManagerAmount +
-      referralAmount +
-      telnenshareRetained
+    total,
+
+    balanced:
+      Math.abs(total - withdrawalAmount) < 0.000001
   }
 }
