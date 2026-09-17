@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TELNEN Simulation</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f4f6f8;color:#111827}
+button,input,select{font:inherit}
+header{background:#111827;color:#fff;padding:24px 20px}
+header h1{margin:0;font-size:28px}
+header p{margin:6px 0 0;color:#cbd5e1}
+main{max-width:1400px;margin:auto;padding:20px}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(15,23,42,.04)}
+.card h2{margin:0 0 14px;font-size:17px}
+.metric{font-size:26px;font-weight:750;margin-top:5px}
+.label{font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.06em}
+.controls{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.control label{display:block;font-size:12px;color:#475569;margin-bottom:6px}
+.control input,.control select{width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:9px;background:#fff}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+button{border:0;border-radius:9px;padding:10px 14px;background:#111827;color:#fff;cursor:pointer}
+button.secondary{background:#e2e8f0;color:#111827}
+button.danger{background:#991b1b}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:9px;border-bottom:1px solid #e5e7eb;text-align:right}
+th:first-child,td:first-child{text-align:left}
+.small{font-size:12px;color:#64748b}
+.bar{height:12px;background:#e5e7eb;border-radius:99px;overflow:hidden;margin-top:8px}
+.bar span{display:block;height:100%;background:#111827}
+.eventlog{max-height:320px;overflow:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.event{padding:8px 0;border-bottom:1px solid #eef2f7}
+.status{display:inline-block;padding:4px 8px;border-radius:99px;background:#dcfce7;color:#166534;font-size:12px}
+svg{width:100%;height:260px}
+.note{padding:12px;border-left:4px solid #111827;background:#f8fafc;margin-top:12px}
+@media(max-width:900px){.grid,.controls,.grid2{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.grid,.controls,.grid2{grid-template-columns:1fr}main{padding:12px}header{padding:18px 14px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>TELNEN Simulation</h1>
+  <p>Trading economy, manager network, 50% hard stop, restitution, Social Bond and TELNEN scale model.</p>
+</header>
+
+<main>
+<section class="card">
+  <h2>Scale controls</h2>
+  <div class="controls">
+    <div class="control">
+      <label>User population</label>
+      <input id="users" type="number" min="1" value="10000">
+    </div>
+    <div class="control">
+      <label>Capital Building rate</label>
+      <input id="capitalRate" type="number" min="0" max="1" step=".01" value=".70">
+    </div>
+    <div class="control">
+      <label>Social Bond adoption</label>
+      <input id="bondRate" type="number" min="0" max="1" step=".01" value=".90">
+    </div>
+    <div class="control">
+      <label>Profitable users</label>
+      <input id="profitableRate" type="number" min="0" max="1" step=".01" value=".10">
+    </div>
+    <div class="control">
+      <label>Average Capital Building target</label>
+      <input id="cbTarget" type="number" min="0" step="100" value="1000">
+    </div>
+    <div class="control">
+      <label>Average direct deposit</label>
+      <input id="deposit" type="number" min="0" step="100" value="1000">
+    </div>
+    <div class="control">
+      <label>Lots per active user</label>
+      <input id="lots" type="number" min="0" step="1" value="20">
+    </div>
+    <div class="control">
+      <label>Average monthly withdrawal</label>
+      <input id="withdrawal" type="number" min="0" step="50" value="500">
+    </div>
+    <div class="control">
+      <label>Hard stop rate</label>
+      <input id="hardStopRate" type="number" min="0" max="1" step=".01" value=".50">
+    </div>
+    <div class="control">
+      <label>Restitution per hard stop</label>
+      <input id="claim" type="number" min="0" step="100" value="500">
+    </div>
+    <div class="control">
+      <label>Manager recovery share</label>
+      <input id="managerRecovery" type="number" min="0" max="1" step=".01" value=".50">
+    </div>
+    <div class="control">
+      <label>Concurrent Social Bond usage</label>
+      <input id="bondConcurrent" type="number" min="0" max="1" step=".01" value=".30">
+    </div>
+  </div>
+  <div class="actions">
+    <button onclick="run()">Run simulation</button>
+    <button class="secondary" onclick="runPreset(10000)">10K</button>
+    <button class="secondary" onclick="runPreset(100000)">100K</button>
+    <button class="secondary" onclick="runPreset(1000000)">1M</button>
+    <button class="secondary" onclick="runPreset(10000000)">10M</button>
+    <button class="secondary" onclick="runPreset(100000000)">100M</button>
+    <button class="secondary" onclick="runFullScenario()">Run full TELNEN scenario</button>
+  </div>
+</section>
+
+<section class="grid" style="margin-top:14px">
+  <div class="card"><div class="label">Users</div><div id="mUsers" class="metric">0</div></div>
+  <div class="card"><div class="label">Active accounts</div><div id="mActive" class="metric">0</div></div>
+  <div class="card"><div class="label">Capital Building</div><div id="mCB" class="metric">0</div></div>
+  <div class="card"><div class="label">Social Bond users</div><div id="mBond" class="metric">0</div></div>
+  <div class="card"><div class="label">Profitable users</div><div id="mProfitable" class="metric">0</div></div>
+  <div class="card"><div class="label">Hard stops</div><div id="mHardStops" class="metric">0</div></div>
+  <div class="card"><div class="label">Trading lots</div><div id="mLots" class="metric">0</div></div>
+  <div class="card"><div class="label">Broker rebate</div><div id="mRebate" class="metric">$0</div></div>
+</section>
+
+<section class="grid2" style="margin-top:14px">
+  <div class="card">
+    <h2>TE revenue</h2>
+    <table>
+      <tbody id="teTable"></tbody>
+    </table>
+  </div>
+  <div class="card">
+    <h2>Trader economy</h2>
+    <table>
+      <tbody id="traderTable"></tbody>
+    </table>
+  </div>
+  <div class="card">
+    <h2>Restitution stress</h2>
+    <table>
+      <tbody id="riskTable"></tbody>
+    </table>
+    <div class="note">Worst case assumption: 50% of restitution is recovered through manager revenue interception and the remaining 50% becomes TE buffer exposure. The model does not use the buffer during the first 100 interception days.</div>
+  </div>
+  <div class="card">
+    <h2>Social Bond economy</h2>
+    <table>
+      <tbody id="bondTable"></tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card" style="margin-top:14px">
+  <h2>100 day manager recovery curve</h2>
+  <svg id="chart" viewBox="0 0 900 260" preserveAspectRatio="none"></svg>
+</section>
+
+<section class="card" style="margin-top:14px">
+  <h2>Scale comparison</h2>
+  <div style="overflow:auto">
+    <table>
+      <thead><tr><th>Users</th><th>Active</th><th>Capital Building</th><th>Social Bond</th><th>Lots</th><th>TE revenue</th><th>Claims</th><th>TE buffer</th></tr></thead>
+      <tbody id="scaleTable"></tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card" style="margin-top:14px">
+  <h2>Full scenario event log</h2>
+  <div id="scenarioStatus" class="small">Run the full scenario to generate the event sequence.</div>
+  <div id="eventLog" class="eventlog" style="margin-top:10px"></div>
+</section>
+</main>
+
+<script>
+const RULES={
+  hardStop:.50,
+  brokerRebatePerLot:12,
+  capitalDaily:.011,
+  capitalFunding:.01,
+  capitalService:.001,
+  capitalDays:100,
+  socialBondFee:.20,
+  socialBondFacilitator:.40,
+  socialBondBonder:.40,
+  socialBondTE:.20,
+  socialBondDays:30,
+  restitutionDays:100,
+  ownerWithdrawal:.35,
+  managerWithdrawal:.35,
+  teWithdrawal:.30
+}
+
+const money=n=>"$"+Number(n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})
+const num=n=>Number(n||0).toLocaleString()
+const pct=n=>(Number(n||0)*100).toFixed(1)+"%"
+
+function assumptions(){
+  return {
+    capitalRate:+document.getElementById("capitalRate").value,
+    bondRate:+document.getElementById("bondRate").value,
+    profitableRate:+document.getElementById("profitableRate").value,
+    cbTarget:+document.getElementById("cbTarget").value,
+    deposit:+document.getElementById("deposit").value,
+    lots:+document.getElementById("lots").value,
+    withdrawal:+document.getElementById("withdrawal").value,
+    hardStopRate:+document.getElementById("hardStopRate").value,
+    claim:+document.getElementById("claim").value,
+    managerRecovery:+document.getElementById("managerRecovery").value,
+    bondConcurrent:+document.getElementById("bondConcurrent").value
+  }
+}
+
+function population(users,a){
+  const active=Math.floor(users)
+  const cb=Math.floor(users*a.capitalRate)
+  const direct=Math.max(0,active-cb)
+  const bonds=Math.floor(users*a.bondRate)
+  const profitable=Math.floor(users*a.profitableRate)
+  const hardStops=Math.floor(Math.max(0,users-profitable)*a.hardStopRate)
+  const concurrent=Math.floor(hardStops*a.bondConcurrent)
+  return {users,active,cb,direct,bonds,profitable,hardStops,concurrent}
+}
+
+function simulate(users,a){
+  const p=population(users,a)
+  const funding={
+    cbVolume:p.cb*a.cbTarget,
+    directVolume:p.direct*a.deposit
+  }
+  funding.total=funding.cbVolume+funding.directVolume
+
+  const lots=p.active*a.lots
+  const brokerRebate=lots*RULES.brokerRebatePerLot
+  const withdrawals=p.profitable*a.withdrawal
+
+  const owner=withdrawals*.35
+  const manager=withdrawals*.35
+  const te=withdrawals*.30
+  const referral=te*.50
+  const retained=te*.50
+
+  const cbTarget=p.cb*a.cbTarget
+  const cbService=cbTarget*RULES.capitalService
+  const bondVolume=p.concurrent*a.claim
+  const bondFees=bondVolume*RULES.socialBondFee
+  const bondTE=bondFees*RULES.socialBondTE
+
+  const claims=p.hardStops*a.claim
+  const managerRecovery=claims*a.managerRecovery
+  const buffer=claims-managerRecovery
+
+  const teRevenue=brokerRebate+te+cbService+bondTE
+
+  const curve=[]
+  for(let day=1;day<=130;day++){
+    let mr=0,bu=0
+    if(day<=100) mr=managerRecovery*(day/100)
+    else{
+      mr=managerRecovery
+      bu=Math.min(buffer,buffer*((day-100)/30))
+    }
+    curve.push({
+      day,
+      managerRecovered:mr,
+      bufferUsed:bu,
+      outstanding:Math.max(0,claims-mr-bu)
+    })
+  }
+
+  return {
+    p,funding,lots,brokerRebate,withdrawals,
+    owner,manager,te,referral,retained,
+    cbTarget,cbService,bondVolume,bondFees,bondTE,
+    claims,managerRecovery,buffer,teRevenue,curve
+  }
+}
+
+function row(label,value){
+  return `<tr><td>${label}</td><td>${value}</td></tr>`
+}
+
+function render(r){
+  document.getElementById("mUsers").textContent=num(r.p.users)
+  document.getElementById("mActive").textContent=num(r.p.active)
+  document.getElementById("mCB").textContent=num(r.p.cb)
+  document.getElementById("mBond").textContent=num(r.p.bonds)
+  document.getElementById("mProfitable").textContent=num(r.p.profitable)
+  document.getElementById("mHardStops").textContent=num(r.p.hardStops)
+  document.getElementById("mLots").textContent=num(r.lots)
+  document.getElementById("mRebate").textContent=money(r.brokerRebate)
+
+  document.getElementById("teTable").innerHTML=
+    row("Withdrawal allocation",money(r.te))+
+    row("Broker rebate",money(r.brokerRebate))+
+    row("Capital Building service fee",money(r.cbService))+
+    row("Social Bond revenue",money(r.bondTE))+
+    row("Total TE revenue",money(r.teRevenue))
+
+  document.getElementById("traderTable").innerHTML=
+    row("Owner withdrawal share",money(r.owner))+
+    row("Manager share",money(r.manager))+
+    row("Referral revenue",money(r.referral))+
+    row("Total trader revenue",money(r.owner+r.manager+r.referral))
+
+  document.getElementById("riskTable").innerHTML=
+    row("Restitution claims",num(r.p.hardStops))+
+    row("Total restitution exposure",money(r.claims))+
+    row("Manager recovery",money(r.managerRecovery))+
+    row("TE buffer requirement",money(r.buffer))+
+    row("Manager recovery rate",pct(r.claims? r.managerRecovery/r.claims:0))
+
+  document.getElementById("bondTable").innerHTML=
+    row("Adopting users",num(r.p.bonds))+
+    row("Concurrent bond volume",money(r.bondVolume))+
+    row("Activation fees",money(r.bondFees))+
+    row("Facilitator share",money(r.bondFees*.40))+
+    row("Bonder share",money(r.bondFees*.40))+
+    row("TE share",money(r.bondTE))
+
+  drawChart(r.curve)
+}
+
+function drawChart(curve){
+  const svg=document.getElementById("chart")
+  const W=900,H=260,pad=35
+  const max=Math.max(1,...curve.map(x=>Math.max(x.outstanding,x.managerRecovered,x.bufferUsed)))
+  const x=i=>pad+(i/(curve.length-1))*(W-pad*2)
+  const y=v=>H-pad-(v/max)*(H-pad*2)
+  const line=key=>curve.map((d,i)=>(i?"L":"M")+x(i).toFixed(1)+","+y(d[key]).toFixed(1)).join(" ")
+  svg.innerHTML=
+    `<line x1="${pad}" y1="${H-pad}" x2="${W-pad}" y2="${H-pad}" stroke="#cbd5e1"/>
+     <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${H-pad}" stroke="#cbd5e1"/>
+     <path d="${line("outstanding")}" fill="none" stroke="#111827" stroke-width="3"/>
+     <path d="${line("managerRecovered")}" fill="none" stroke="#2563eb" stroke-width="2"/>
+     <path d="${line("bufferUsed")}" fill="none" stroke="#dc2626" stroke-width="2"/>
+     <text x="${pad}" y="18" font-size="12">Exposure</text>
+     <text x="${W-240}" y="${H-8}" font-size="12">Day 130</text>
+     <text x="${W-250}" y="18" font-size="12">Black outstanding · Blue manager · Red buffer</text>`
+}
+
+function run(){
+  const users=Math.max(1,Math.floor(+document.getElementById("users").value||1))
+  render(simulate(users,assumptions()))
+  renderScaleTable()
+}
+
+function runPreset(users){
+  document.getElementById("users").value=users
+  run()
+}
+
+function renderScaleTable(){
+  const a=assumptions()
+  const points=[10000,25000,50000,100000,250000,500000,1000000,2500000,5000000,10000000,25000000,50000000,100000000]
+  document.getElementById("scaleTable").innerHTML=points.map(u=>{
+    const r=simulate(u,a)
+    return `<tr>
+      <td>${num(u)}</td>
+      <td>${num(r.p.active)}</td>
+      <td>${num(r.p.cb)}</td>
+      <td>${num(r.p.bonds)}</td>
+      <td>${num(r.lots)}</td>
+      <td>${money(r.teRevenue)}</td>
+      <td>${num(r.p.hardStops)}</td>
+      <td>${money(r.buffer)}</td>
+    </tr>`
+  }).join("")
+}
+
+function runFullScenario(){
+  const events=[]
+  const add=(type,data)=>events.push({type,data})
+  let equity=10000
+  let claim1=0
+  let claim2=0
+
+  add("JOIN",{trader:"TRADER-001"})
+  add("REFERRAL_ASSIGNED",{referrer:"REF-001"})
+  add("ACCOUNT_FUNDED",{amount:10000,method:"direct deposit"})
+  add("MANAGER_ASSIGNED",{manager:"MANAGER-001"})
+  add("TRADE_PROFIT",{amount:2000})
+  add("WITHDRAWAL_APPROVED",{amount:1000,owner:"35%",manager:"35%",TE:"30%"})
+
+  equity=5000
+  claim1=5000
+  add("DRAWDOWN",{equity})
+  add("HARD_STOP",{drawdown:"50%"})
+  add("MANAGER_DISCONNECTED",{})
+  add("PENDING_ORDERS_TERMINATED",{})
+  add("RESTITUTION_CLAIM",{claim:claim1})
+  add("MANAGER_INTERCEPTION_STARTED",{days:100})
+
+  add("SOCIAL_BOND_REQUESTED",{amount:5000})
+  add("SOCIAL_BOND_FUNDED",{amount:5000,duration:"30 days"})
+  add("LIEN_PLACED",{amount:5000})
+  add("ACCOUNT_RESTORED",{equity:10000})
+
+  equity=5000
+  claim2=5000
+  add("SECOND_HARD_STOP",{equity})
+  add("SECOND_RESTITUTION_CLAIM",{claim:claim2})
+  add("SECOND_SOCIAL_BOND_OPTION",{remainingEquity:5000})
+
+  for(let d=1;d<=100;d+=25) add("RESTITUTION_PROGRESS",{day:d,claim1,claim2})
+  add("CLAIMS_REMAIN_INDEPENDENT",{claim1,claim2})
+  add("SOCIAL_BOND_REUSE",{description:"Trader may secure another bridge while prior claims remain active"})
+  add("RESTITUTION_RESOLVED",{description:"Claims resolve independently as recovery arrives"})
+
+  document.getElementById("scenarioStatus").innerHTML=
+    `<span class="status">Scenario complete</span> ${events.length} events`
+  document.getElementById("eventLog").innerHTML=events.map((e,i)=>
+    `<div class="event"><b>${String(i+1).padStart(2,"0")} ${e.type}</b><br>${JSON.stringify(e.data)}</div>`
+  ).join("")
+}
+
+document.querySelectorAll("input").forEach(el=>el.addEventListener("change",()=>{run()}))
+run()
+</script>
+</body>
+</html>
