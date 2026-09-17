@@ -1,13 +1,31 @@
+import { TELNEN_RULES } from "../data/rules"
+
+export const RESTITUTION_STATES = {
+  ACTIVE: "active",
+  RECOVERING: "recovering",
+  BUFFER_ADVANCED: "buffer_advanced",
+  RESOLVED: "resolved"
+}
+
+function generateId(prefix) {
+  return `${prefix}-${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2, 8)}`
+}
+
 export function createRestitutionClaim({
   accountId,
   managerId,
   claimAmount
 }) {
+  if (claimAmount <= 0) {
+    throw new Error(
+      "Restitution claim must be greater than zero"
+    )
+  }
+
   return {
-    id:
-      `RC-${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2, 8)}`,
+    id: generateId("RC"),
 
     accountId,
 
@@ -23,85 +41,14 @@ export function createRestitutionClaim({
 
     managerInterceptionDays: 0,
 
-    status: "active"
-  }
-}
+    managerInterceptionComplete: false,
 
-export function interceptManagerRevenue(
-  claim,
-  managerRevenue
-) {
-  if (
-    claim.status === "resolved"
-  ) {
-    return claim
-  }
+    status:
+      RESTITUTION_STATES.ACTIVE,
 
-  const amount =
-    Math.min(
-      managerRevenue,
-      claim.outstanding
-    )
+    createdAt:
+      new Date().toISOString(),
 
-  return {
-    ...claim,
-
-    recoveredFromManager:
-      claim.recoveredFromManager +
-      amount,
-
-    outstanding:
-      claim.outstanding -
-      amount,
-
-    managerInterceptionDays:
-      claim.managerInterceptionDays +
-      1
-  }
-}
-
-export function useTelnensBuffer(
-  claim,
-  bufferAmount
-) {
-  if (
-    claim.status === "resolved"
-  ) {
-    return {
-      claim,
-
-      bufferUsed: 0
-    }
-  }
-
-  const amount =
-    Math.min(
-      bufferAmount,
-      claim.outstanding
-    )
-
-  const updatedClaim = {
-    ...claim,
-
-    advancedFromTelnensBuffer:
-      claim.advancedFromTelnensBuffer +
-      amount,
-
-    outstanding:
-      claim.outstanding -
-      amount
-  }
-
-  if (
-    updatedClaim.outstanding <= 0
-  ) {
-    updatedClaim.status =
-      "resolved"
-  }
-
-  return {
-    claim: updatedClaim,
-
-    bufferUsed: amount
+    resolvedAt: null
   }
 }
