@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TELNEN Operating Simulator</title>
+<style>
+:root{
+  --bg:#f4f6f8;--card:#fff;--ink:#17202a;--muted:#667085;--line:#dfe4ea;
+  --accent:#111827;--soft:#eef2f6;--good:#087443;--warn:#a15c00;--bad:#b42318;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{background:#111827;color:#fff;padding:24px 20px}
+header h1{margin:0 0 5px;font-size:25px}
+header p{margin:0;color:#cbd5e1;font-size:13px}
+nav{display:flex;gap:8px;overflow:auto;padding:12px 16px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10}
+nav button{border:1px solid var(--line);background:#fff;border-radius:9px;padding:10px 13px;white-space:nowrap;cursor:pointer}
+nav button.active{background:#111827;color:#fff;border-color:#111827}
+main{max-width:1450px;margin:auto;padding:18px}
+section{display:none}
+section.active{display:block}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.card h2,.card h3{margin:0 0 12px}
+.small{font-size:12px;color:var(--muted)}
+.metric{font-size:23px;font-weight:750;margin-top:5px}
+label{display:block;font-size:12px;font-weight:650;margin:10px 0 5px}
+input,select{width:100%;padding:9px 10px;border:1px solid #cfd6df;border-radius:8px;background:#fff;font-size:14px}
+button.action{background:#111827;color:#fff;border:0;border-radius:8px;padding:10px 14px;cursor:pointer;margin-top:12px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{border-bottom:1px solid var(--line);padding:8px;text-align:right;vertical-align:top}
+th:first-child,td:first-child{text-align:left}
+th{background:#f8fafc;position:sticky;top:54px}
+.badge{display:inline-block;padding:4px 7px;border-radius:999px;background:var(--soft);font-size:11px}
+.good{color:var(--good)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+pre{white-space:pre-wrap;background:#0f172a;color:#e2e8f0;border-radius:9px;padding:13px;overflow:auto;font-size:12px}
+.timeline{display:grid;gap:7px}
+.event{border-left:3px solid #111827;padding:8px 10px;background:#f8fafc}
+.note{background:#fff8e6;border:1px solid #f0d48a;border-radius:9px;padding:11px;font-size:12px}
+@media(max-width:1000px){.grid,.grid3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){main{padding:10px}.grid,.grid2,.grid3{grid-template-columns:1fr}.metric{font-size:20px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>TELNEN Operating Simulator</h1>
+  <p>Blueprint based operating model, trader lifecycle, Social Bond, Capital Building, restitution and 10K to 100M scale stress testing.</p>
+</header>
+
+<nav id="nav">
+<button class="active" data-tab="scale">Scale</button>
+<button data-tab="lifecycle">Trader Lifecycle</button>
+<button data-tab="bond">Social Bond</button>
+<button data-tab="restitution">Restitution</button>
+<button data-tab="capital">Capital Building</button>
+<button data-tab="economics">Economics</button>
+<button data-tab="ledger">Ledger</button>
+</nav>
+
+<main>
+
+<section id="scale" class="active">
+<div class="card">
+<h2>Scale assumptions</h2>
+<div class="grid3">
+<div><label>User population</label><select id="scaleUsers"></select></div>
+<div><label>Capital Building adoption</label><input id="cbAdoption" type="number" min="0" max="100" value="70" step="1"></div>
+<div><label>Social Bond drawdown participation</label><input id="sbAdoption" type="number" min="0" max="100" value="90" step="1"></div>
+<div><label>Average account size</label><input id="avgAccount" type="number" min="100" value="5000" step="50"></div>
+<div><label>Trading lots per user per day</label><input id="lotsDay" type="number" min="0" value="3" step=".1"></div>
+<div><label>Trading days per month</label><input id="tradingDays" type="number" min="1" value="30"></div>
+<div><label>Monthly withdrawal participation</label><input id="withdrawParticipation" type="number" min="0" max="100" value="20"></div>
+<div><label>Withdrawal as % of average account</label><input id="withdrawPct" type="number" min="0" max="100" value="50"></div>
+<div><label>Broker rebate per standard lot</label><input id="rebate" type="number" min="0" value="12"></div>
+<div><label>Subscription per month</label><input id="subscription" type="number" min="0" value="4.99" step=".01"></div>
+<div><label>Restitution affected traders</label><input id="restAffected" type="number" min="0" max="100" value="70"></div>
+<div><label>Restitution claim per affected trader</label><input id="restClaim" type="number" min="100" value="2500" step="100"></div>
+</div>
+<button class="action" onclick="runScale()">Calculate scale</button>
+</div>
+<div id="scaleMetrics" class="grid"></div>
+<div class="card"><h2>10K to 100M operating scale</h2><div style="overflow:auto"><table id="scaleTable"></table></div></div>
+<div class="card"><h2>Restitution stress range</h2><div style="overflow:auto"><table id="stressTable"></table></div></div>
+</section>
+
+<section id="lifecycle">
+<div class="card">
+<h2>One trader from registration to operating network</h2>
+<div class="grid3">
+<div><label>Initial funded account</label><input id="lifeAccount" type="number" value="5000"></div>
+<div><label>Trading profit generated</label><input id="lifeProfit" type="number" value="1000"></div>
+<div><label>Assigned accounts</label><input id="lifeAssigned" type="number" min="0" max="5" value="5"></div>
+<div><label>Accounts delegated to sub managers</label><input id="lifeSub" type="number" min="0" max="5" value="4"></div>
+<div><label>Referred trader profit</label><input id="lifeReferralProfit" type="number" value="1000"></div>
+<div><label>Social Bond amount facilitated</label><input id="lifeFacilitated" type="number" value="5000"></div>
+<div><label>Social Bond amount as bonder</label><input id="lifeBonder" type="number" value="500"></div>
+</div>
+<button class="action" onclick="runLifecycle()">Run lifecycle</button>
+</div>
+<div id="lifeMetrics" class="grid"></div>
+<div class="card"><h2>Lifecycle events</h2><div id="lifeTimeline" class="timeline"></div></div>
+<div class="card"><h2>Income streams</h2><div style="overflow:auto"><table id="lifeTable"></table></div></div>
+</section>
+
+<section id="bond">
+<div class="card">
+<h2>Social Bond engine</h2>
+<div class="grid3">
+<div><label>Drawdown account size</label><input id="bondAccount" type="number" value="5000"></div>
+<div><label>Hard stop drawdown</label><input id="bondDrawdown" type="number" value="50"></div>
+<div><label>Provider/facilitator coverage</label><input id="bondFacCoverage" type="number" min="0" max="100" value="100"></div>
+<div><label>Number of bonders</label><input id="bonders" type="number" min="0" max="10" value="10"></div>
+<div><label>Bonder coverage each</label><input id="bonderCap" type="number" min="0" max="10" value="10"></div>
+<div><label>Activation fee</label><input id="bondFee" type="number" value="20"></div>
+<div><label>Bonder fee share</label><input id="bonderShare" type="number" value="40"></div>
+<div><label>Facilitator fee share</label><input id="facShare" type="number" value="40"></div>
+<div><label>TE fee share</label><input id="teBondShare" type="number" value="20"></div>
+</div>
+<button class="action" onclick="runBond()">Calculate Social Bond</button>
+</div>
+<div id="bondMetrics" class="grid"></div>
+<div class="card"><h2>Ten bonder obligations</h2><div style="overflow:auto"><table id="bonderTable"></table></div></div>
+<div class="card"><h2>Repayment priority</h2><pre>1. Recipient revenue
+2. Ten bonders, when recipient revenue is insufficient by day 30 or is tied up
+3. Facilitator for remaining risk
+
+The recipient carries the full lien.
+The Social Bond runs inside a 30 day window.
+A bonder seeking early withdrawal requires the relevant lien to be advanced or settled first.</pre></div>
+</section>
+
+<section id="restitution">
+<div class="card">
+<h2>Restitution engine</h2>
+<div class="note">The current master blueprint specifies a 90 day manager interception threshold. This simulator preserves that blueprint figure. Restitution is only the fallback after the Social Bond liquidity route fails. The remaining 50% equity is the security used for the Social Bond.</div>
+<div class="grid3">
+<div><label>Account value before drawdown</label><input id="restAccount" type="number" value="5000"></div>
+<div><label>Actual equity after drawdown</label><input id="restEquity" type="number" value="2500"></div>
+<div><label>Manager revenue available over 90 days</label><input id="managerPool" type="number" value="5000"></div>
+<div><label>TE restitution buffer</label><input id="buffer" type="number" value="10000"></div>
+<div><label>Social Bond successfully obtained</label><select id="bondSuccess"><option value="yes">Yes</option><option value="no">No</option></select></div>
+<div><label>Restitution claim</label><input id="restClaimManual" type="number" value="2500"></div>
+</div>
+<button class="action" onclick="runRestitution()">Run restitution</button>
+</div>
+<div id="restMetrics" class="grid"></div>
+<div class="card"><h2>90 day recovery curve</h2><div style="overflow:auto"><table id="restTable"></table></div></div>
+</section>
+
+<section id="capital">
+<div class="card">
+<h2>Capital Building</h2>
+<div class="grid3">
+<div><label>Target account size</label><input id="cbTarget" type="number" value="5000"></div>
+<div><label>Scheduled payment rate</label><input id="cbRate" type="number" value="1.1" step=".1"></div>
+<div><label>Credit repayment portion</label><input id="cbRepay" type="number" value="1"></div>
+<div><label>TE service fee portion</label><input id="cbFee" type="number" value=".1" step=".1"></div>
+<div><label>Days paid</label><input id="cbDays" type="number" value="30"></div>
+<div><label>Early funding day</label><input id="cbEarlyDay" type="number" value="30"></div>
+</div>
+<button class="action" onclick="runCapital()">Calculate Capital Building</button>
+</div>
+<div id="cbMetrics" class="grid"></div>
+<div class="card"><h2>Daily schedule</h2><div style="overflow:auto"><table id="cbTable"></table></div></div>
+</section>
+
+<section id="economics">
+<div class="card">
+<h2>Core TELNEN economics from the blueprint</h2>
+<div class="grid2">
+<div>
+<h3>Revenue</h3>
+<table>
+<tr><td>$12 per standard lot</td><td><span class="badge">$12</span></td></tr>
+<tr><td>Profit withdrawal fee</td><td><span class="badge">15%</span></td></tr>
+<tr><td>Subscription</td><td><span class="badge">$4.99/month</span></td></tr>
+<tr><td>Capital Building service fee</td><td><span class="badge">0.1% of 1.1% payment</span></td></tr>
+<tr><td>Social Bond TE allocation</td><td><span class="badge">20% of 20% activation fee</span></td></tr>
+</table>
+</div>
+<div>
+<h3>Account mechanics</h3>
+<table>
+<tr><td>Owner profit share</td><td>50%</td></tr>
+<tr><td>Manager profit share</td><td>50%</td></tr>
+<tr><td>TE cut from owner's share</td><td>15%</td></tr>
+<tr><td>TE cut from manager's share</td><td>15%</td></tr>
+<tr><td>Hard stop</td><td>50% equity drawdown</td></tr>
+<tr><td>Assigned accounts</td><td>Up to 5</td></tr>
+<tr><td>Sub manager allocation</td><td>25% original manager / 25% sub manager</td></tr>
+</table>
+</div>
+</div>
+</div>
+<div class="card">
+<h2>Revenue example</h2>
+<pre>$1,000 account profit
+Owner gross = $500
+Manager gross = $500
+TELNEN owner-side fee = $75
+TELNEN manager-side fee = $75
+Owner net = $425
+Manager net = $425
+TELNEN = $150</pre>
+</div>
+<div class="card">
+<h2>Scale formula notes</h2>
+<p class="small">The scale table treats the displayed assumptions as scenario inputs. Capital Building uses the full 1.1% scheduled payment for cash flow and separately identifies the 1% repayment and 0.1% TELNEN service fee. Broker rebate is modeled from daily lots multiplied by the selected number of trading days. Withdrawal volume is modeled from participating users and the selected percentage of average account size. Restitution stress is a scenario, not a forecast.</p>
+</div>
+</section>
+
+<section id="ledger">
+<div class="card"><h2>Operating ledger</h2><div id="ledgerList" class="timeline"></div></div>
+</section>
+
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+const val=id=>Number($(id).value)||0;
+const money=n=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}).format(n||0);
+const pct=n=>(n||0).toFixed(1)+"%";
+const usersList=[10000,25000,50000,100000,250000,500000,1000000,2500000,5000000,10000000,25000000,50000000,100000000];
+const avgScale={10000:5000,25000:5100,50000:5200,100000:5350,250000:5500,500000:5750,1000000:6000,2500000:6250,5000000:6500,10000000:7000,25000000:7500,50000000:8000,100000000:8500};
+let ledger=[];
+
+usersList.forEach(u=>{$("scaleUsers").innerHTML+=`<option value="${u}">${u.toLocaleString()}</option>`});
+$("scaleUsers").value="10000";
+
+document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>{
+ document.querySelectorAll("#nav button").forEach(x=>x.classList.remove("active"));
+ document.querySelectorAll("main section").forEach(x=>x.classList.remove("active"));
+ b.classList.add("active");$(b.dataset.tab).classList.add("active");
+});
+
+function metric(title,value,sub=""){
+ return `<div class="card"><div class="small">${title}</div><div class="metric">${value}</div><div class="small">${sub}</div></div>`;
+}
+function log(text){ledger.unshift({time:new Date().toLocaleTimeString(),text});renderLedger()}
+
+function runScale(){
+ const u=val("scaleUsers"), cb=val("cbAdoption")/100, sb=val("sbAdoption")/100;
+ const a=val("avgAccount"), lots=val("lotsDay"), days=val("tradingDays");
+ const wp=val("withdrawParticipation")/100, wpa=val("withdrawPct")/100;
+ const rebate=val("rebate"), sub=val("subscription");
+ const cbUsers=u*cb, sbUsers=u*sb;
+ const cbDaily=u*cb*a*.011, cb30=cbDaily*30, cbService=cb30*(.001/.011);
+ const monthlyLots=u*lots*days, broker=monthlyLots*rebate;
+ const withdrawalVolume=u*wp*a*wpa, withdrawalFee=withdrawalVolume*.15;
+ const subs=u*sub;
+ const sbRequests=sbUsers;
+ const sbAmountPer=a*.5;
+ const sbVolume=sbRequests*sbAmountPer;
+ const sbActivation=sbVolume*.20, sbTE=sbActivation*.20, sbBonders=sbActivation*.40, sbFac=sbActivation*.40;
+ const total=broker+withdrawalFee+subs+cbService+sbTE;
+ const hardStopExposurePer=a*.5;
+ $("scaleMetrics").innerHTML=[
+  metric("Users",u.toLocaleString()),
+  metric("Average account",money(a)),
+  metric("Account capital",money(u*a)),
+  metric("Capital Building users",Math.round(cbUsers).toLocaleString(),pct(cb*100)+" adoption"),
+  metric("CB scheduled payments, 30 days",money(cb30),"full 1.1% payment"),
+  metric("CB TE service fee",money(cbService),"0.1% portion"),
+  metric("Monthly standard lots",Math.round(monthlyLots).toLocaleString(),lots+" lots/day/user"),
+  metric("Broker rebates",money(broker),"$"+rebate+" per lot"),
+  metric("Estimated withdrawals",money(withdrawalVolume),pct(wp*100)+" of users"),
+  metric("TE withdrawal fee",money(withdrawalFee),"15%"),
+  metric("Social Bond activation volume",money(sbVolume),pct(sb*100)+" of users"),
+  metric("Social Bond TE allocation",money(sbTE),"20% of activation fee"),
+  metric("Total modeled TE revenue",money(total),"selected assumptions"),
+  metric("Hard stop amount per affected account",money(hardStopExposurePer),"50% drawdown")
+ ].join("");
+ const rows=usersList.map(x=>{
+   const av=avgScale[x];
+   const cbu=x*cb, cbd=x*cb*av*.011*30, cbs=cbd*(.001/.011);
+   const lotsm=x*lots*days, br=lotsm*rebate;
+   const w=x*wp*av*wpa, wf=w*.15;
+   const sv=x*sb*av*.5, af=sv*.2, te=af*.2;
+   const rev=br+wf+x*sub+cbs+te;
+   const hard=av*.5;
+   return `<tr><td>${x.toLocaleString()}</td><td>${money(av)}</td><td>${money(x*av)}</td><td>${money(cbu*av*.011*30)}</td><td>${money(cbs)}</td><td>${Math.round(lotsm).toLocaleString()}</td><td>${money(br)}</td><td>${money(w)}</td><td>${money(wf)}</td><td>${money(sv)}</td><td>${money(te)}</td><td>${money(rev)}</td><td>${money(x*sb*hard)}</td></tr>`;
+ }).join("");
+ $("scaleTable").innerHTML=`<tr><th>Users</th><th>Avg account</th><th>Total capital</th><th>CB scheduled payments</th><th>CB TE fee</th><th>Lots/month</th><th>Broker rebates</th><th>Estimated withdrawals</th><th>Withdrawal fee</th><th>SB volume</th><th>SB TE</th><th>Total TE revenue</th><th>SB secured equity</th></tr>`+rows;
+ let stress="";
+ for(let p=10;p<=70;p+=10){
+   const claims=u*p/100;
+   stress+=`<tr><td>${p}%</td><td>${claims.toLocaleString()}</td><td>${money(claims*1000)}</td><td>${money(claims*1500)}</td><td>${money(claims*2000)}</td><td>${money(claims*2500)}</td><td>${money(claims*3000)}</td></tr>`;
+ }
+ $("stressTable").innerHTML=`<tr><th>Affected traders</th><th>Claims</th><th>$1,000 claim</th><th>$1,500 claim</th><th>$2,000 claim</th><th>$2,500 claim</th><th>$3,000 claim</th></tr>`+stress;
+ log(`Scale run at ${u.toLocaleString()} users. TE revenue modeled at ${money(total)} under current assumptions.`);
+}
+
+function runLifecycle(){
+ const account=val("lifeAccount"), profit=val("lifeProfit"), assigned=Math.min(5,val("lifeAssigned")), sub=Math.min(assigned,val("lifeSub"));
+ const ownerGross=profit*.5, managerGross=profit*.5, ownerFee=ownerGross*.15, managerFee=managerGross*.15;
+ const ownerNet=ownerGross-ownerFee, managerNet=managerGross-managerFee;
+ const direct= (assigned-sub)*profit*.5;
+ const subIncome=sub*profit*.25;
+ const refProfit=val("lifeReferralProfit"), referral=refProfit*.15;
+ const fac=val("lifeFacilitated"), facYield=fac*.2*.4;
+ const bond=val("lifeBonder"), bondYield=bond*.2*.4/10;
+ const totalTrader=ownerNet+direct+subIncome+referral+facYield+bondYield;
+ $("lifeMetrics").innerHTML=[
+  metric("Personal account",money(account)),
+  metric("Profit generated",money(profit)),
+  metric("Owner net share",money(ownerNet),"50% gross less 15% TELNEN cut"),
+  metric("Manager net share",money(managerNet),"50% gross less 15% TELNEN cut"),
+  metric("Assigned accounts",assigned.toString(),"maximum 5"),
+  metric("Sub manager accounts",sub.toString(),"25% override per delegated account"),
+  metric("Referral income",money(referral),"15% of referred trader profit"),
+  metric("Facilitator fee income",money(facYield),"40% of 20% activation fee"),
+  metric("Bonder fee income",money(bondYield),"illustrative equal pro rata share"),
+  metric("Illustrative trader income",money(totalTrader),"does not include principal")
+ ].join("");
+ const events=[
+  ["Registration","Mandatory referral, identity verification and $4.99 subscription."],
+  ["Manager selection","Exactly three available managers are presented every 24 hours, one from each of three regions."],
+  ["Funding","Trader funds account through Capital Building or direct deposit."],
+  ["Trading","Manager controls the account under the 50% hard stop."],
+  ["Five accounts","TELNEN can assign up to five additional same-size accounts."],
+  ["Sub managers",`${sub} assigned accounts delegated to sub managers; original manager retains 25% and sub manager receives 25% of manager-side profit.`],
+  ["Referral",`Referred trader generates ${money(refProfit)} profit; blueprint referral allocation is 15%.`],
+  ["Social Bond facilitator",`Facilitated ${money(fac)}; facilitator receives 40% of 20% activation fee.`],
+  ["Social Bond bonder",`Bonder exposure ${money(bond)}; bonder pool receives 40% of 20% activation fee.`]
+ ];
+ $("lifeTimeline").innerHTML=events.map(e=>`<div class="event"><b>${e[0]}</b><br>${e[1]}</div>`).join("");
+ $("lifeTable").innerHTML=`<tr><th>Stream</th><th>Amount</th><th>Rule</th></tr>
+ <tr><td>Managed personal equity</td><td>${money(ownerNet)}</td><td>Owner receives 50%, TELNEN takes 15% of owner's share</td></tr>
+ <tr><td>Direct account management</td><td>${money(direct)}</td><td>${assigned-sub} direct assigned accounts × 50%</td></tr>
+ <tr><td>Sub manager spread</td><td>${money(subIncome)}</td><td>${sub} delegated accounts × 25%</td></tr>
+ <tr><td>Referral network</td><td>${money(referral)}</td><td>15% referral allocation</td></tr>
+ <tr><td>Social Bond facilitator</td><td>${money(facYield)}</td><td>40% of 20% activation fee</td></tr>
+ <tr><td>Social Bond bonder</td><td>${money(bondYield)}</td><td>Pro rata illustration</td></tr>`;
+ log("Trader lifecycle simulation completed.");
+}
+
+function runBond(){
+ const account=val("bondAccount"), draw=val("bondDrawdown")/100, request=account*draw;
+ const fee=request*val("bondFee")/100, bonderPool=fee*val("bonderShare")/100, fac=fee*val("facShare")/100, te=fee*val("teBondShare")/100;
+ const n=Math.min(10,val("bonders")), cap=val("bonderCap")/100;
+ const each=request*cap;
+ $("bondMetrics").innerHTML=[
+  metric("Account before drawdown",money(account)),
+  metric("Remaining 50% equity",money(account*(1-draw)),"security"),
+  metric("Social Bond request",money(request),"same amount as 50% drawdown"),
+  metric("Activation fee",money(fee),"20% of bond"),
+  metric("Bonder pool",money(bonderPool),"40% of activation fee"),
+  metric("Facilitator pool",money(fac),"40% of activation fee"),
+  metric("TE allocation",money(te),"20% of activation fee"),
+  metric("Maximum 10-bonder coverage",money(n*each),"10% maximum each")
+ ].join("");
+ let rows="";
+ for(let i=1;i<=10;i++){
+   const exposure=i<=n?each:0, income=i<=n?bonderPool/n:0;
+   rows+=`<tr><td>Bonder ${i}</td><td>${money(exposure)}</td><td>${i<=n?"5 minute accept/reject window":"Not notified"}</td><td>${money(income)}</td><td>Recipient carries full lien</td></tr>`;
+ }
+ $("bonderTable").innerHTML=`<tr><th>Bonder</th><th>Maximum exposure</th><th>Status</th><th>Activation fee share</th><th>Obligation</th></tr>`+rows;
+ log(`Social Bond run: ${money(request)} secured against remaining account equity.`);
+}
+
+function runRestitution(){
+ const account=val("restAccount"), equity=val("restEquity"), claim=Math.max(0,val("restClaimManual"));
+ const bond=$("bondSuccess").value==="yes";
+ if(bond){
+  $("restMetrics").innerHTML=[
+   metric("Drawdown detected",pct((account-equity)/account*100)),
+   metric("Remaining equity security",money(equity)),
+   metric("Social Bond",money(equity),"trading continuity route"),
+   metric("Restitution status","Deferred","Social Bond route obtained"),
+   metric("Original claim",money(claim),"remains active")
+  ].join("");
+  $("restTable").innerHTML="<tr><td>Social Bond obtained</td><td>Restitution does not begin as the immediate liquidity response.</td></tr>";
+  log("Drawdown routed to Social Bond before restitution.");
+  return;
+ }
+ const pool=val("managerPool"), buffer=val("buffer"), days=90;
+ const daily=pool/days; let recovered=0, rows="";
+ for(let d=1;d<=days;d++){
+   const take=Math.min(daily,Math.max(0,claim-recovered));
+   recovered+=take;
+   rows+=`<tr><td>${d}</td><td>${money(take)}</td><td>${money(recovered)}</td><td>${money(Math.max(0,claim-recovered))}</td></tr>`;
+ }
+ const remaining=Math.max(0,claim-recovered), bufferUsed=Math.min(buffer,remaining), outstanding=remaining-bufferUsed;
+ $("restMetrics").innerHTML=[
+  metric("Claim",money(claim)),
+  metric("Manager intercepted",money(recovered),"90 day threshold"),
+  metric("Manager remaining after 90 days",money(Math.max(0,claim-recovered))),
+  metric("TE buffer used",money(bufferUsed),"fallback after 90 days"),
+  metric("Outstanding",money(outstanding)),
+  metric("Social Bond","Unavailable","restitution pathway activated")
+ ].join("");
+ $("restTable").innerHTML=`<tr><th>Day</th><th>Manager interception</th><th>Cumulative recovery</th><th>Outstanding</th></tr>`+rows;
+ log(`Restitution run completed: ${money(recovered)} manager recovery over 90 days; buffer fallback ${money(bufferUsed)}.`);
+}
+
+function runCapital(){
+ const target=val("cbTarget"), rate=val("cbRate")/100, repay=val("cbRepay")/100, fee=val("cbFee")/100, days=val("cbDays");
+ const daily=target*rate, dailyRepay=target*repay, dailyFee=target*fee;
+ const total=daily*days, totalRepay=dailyRepay*days, totalFee=dailyFee*days;
+ $("cbMetrics").innerHTML=[
+  metric("Target account",money(target)),
+  metric("Daily scheduled payment",money(daily),"1.1% of target"),
+  metric("Daily credit repayment",money(dailyRepay),"1% of target"),
+  metric("Daily TE service fee",money(dailyFee),"0.1% of target"),
+  metric("Total scheduled payments",money(total),days+" days"),
+  metric("Total repayment",money(totalRepay)),
+  metric("Total TE service fee",money(totalFee))
+ ].join("");
+ let rows="";
+ for(let d=1;d<=Math.min(days,100);d++){
+  rows+=`<tr><td>${d}</td><td>${money(daily)}</td><td>${money(dailyRepay)}</td><td>${money(dailyFee)}</td><td>${money(d*daily)}</td></tr>`;
+ }
+ $("cbTable").innerHTML=`<tr><th>Day</th><th>Scheduled payment</th><th>Repayment</th><th>TE fee</th><th>Cumulative payment</th></tr>`+rows;
+ log(`Capital Building run: ${money(total)} scheduled payments over ${days} days.`);
+}
+
+function renderLedger(){
+ $("ledgerList").innerHTML=ledger.length?ledger.map(x=>`<div class="event"><b>${x.time}</b><br>${x.text}</div>`).join(""):`<div class="small">No events yet.</div>`;
+}
+
+runScale();
+runLifecycle();
+runBond();
+runRestitution();
+runCapital();
+renderLedger();
+</script>
+</body>
+</html>
