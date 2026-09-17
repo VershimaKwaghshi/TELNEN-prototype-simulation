@@ -2,6 +2,12 @@ import {
   calculateWithdrawalDistribution
 } from "./withdrawalEngine"
 
+function generateTransactionId() {
+  return `TX-${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2, 8)}`
+}
+
 export function createTransaction({
   type,
   accountId,
@@ -9,10 +15,7 @@ export function createTransaction({
   metadata = {}
 }) {
   return {
-    id:
-      `TX-${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2, 8)}`,
+    id: generateTransactionId(),
 
     type,
 
@@ -35,6 +38,12 @@ export function executeWithdrawal({
   referral,
   hasSubManager = false
 }) {
+  if (!referral?.currentReferrerId) {
+    throw new Error(
+      "Withdrawal requires an active referral relationship"
+    )
+  }
+
   const distribution =
     calculateWithdrawalDistribution(
       withdrawalAmount,
@@ -43,37 +52,45 @@ export function executeWithdrawal({
       }
     )
 
+  if (!distribution.balanced) {
+    throw new Error(
+      "Withdrawal distribution does not balance"
+    )
+  }
+
   const transactions = []
 
   transactions.push(
     createTransaction({
       type: "OWNER_WITHDRAWAL",
+
       accountId: account.id,
+
       amount:
         distribution.ownerAmount
     })
   )
 
-  if (
-    distribution.managerAmount > 0
-  ) {
+  if (distribution.managerAmount > 0) {
     transactions.push(
       createTransaction({
         type: "MANAGER_REVENUE",
+
         accountId: account.id,
+
         amount:
           distribution.managerAmount
       })
     )
   }
 
-  if (
-    distribution.subManagerAmount > 0
-  ) {
+  if (distribution.subManagerAmount > 0) {
     transactions.push(
       createTransaction({
         type: "SUB_MANAGER_REVENUE",
+
         accountId: account.id,
+
         amount:
           distribution.subManagerAmount
       })
@@ -82,36 +99,29 @@ export function executeWithdrawal({
 
   transactions.push(
     createTransaction({
-      type: "TE_WITHDRAWAL_REVENUE",
+      type: "REFERRER_REVENUE",
+
       accountId: account.id,
+
       amount:
-        distribution.teAllocation
+        distribution.referralAmount,
+
+      metadata: {
+        referrerId:
+          referral.currentReferrerId,
+
+        source:
+          "TELNEN_30_PERCENT_ALLOCATION"
+      }
     })
   )
 
-  if (
-    referral &&
-    distribution.referralAmount > 0
-  ) {
-    transactions.push(
-      createTransaction({
-        type: "REFERRAL_REVENUE",
-        accountId: account.id,
-        amount:
-          distribution.referralAmount,
-
-        metadata: {
-          referrerId:
-            referral.currentReferrerId
-        }
-      })
-    )
-  }
-
   transactions.push(
     createTransaction({
-      type: "TE_RETAINED_REVENUE",
+      type: "TELNEN_RETAINED_REVENUE",
+
       accountId: account.id,
+
       amount:
         distribution.retainedTEAmount
     })
@@ -119,6 +129,14 @@ export function executeWithdrawal({
 
   return {
     distribution,
-    transactions
+
+    transactions,
+
+    balanced:
+      transactions.reduce(
+        (sum, transaction) =>
+          sum + transaction.amount,
+        0
+      ) === withdrawalAmount
   }
 }
